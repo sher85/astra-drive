@@ -31,7 +31,6 @@ This project controls a 28BYJ-48 stepper motor via an Arduino using a simple but
 | Use Case               | Rotation Rate               | RPM Value     |
 |------------------------|-----------------------------|---------------|
 | Testing (visible spin) | 1 rotation every 12 seconds | 5             |
-| Real-time preview      | 1 rotation every 1 minute   | 1.0           |
 | Field Use: 1 rev/hr    | 1 rotation every 1 hour     | 0.0167        |
 | Field Use: 1 rev/2hr   | 1 rotation every 2 hours    | 0.0083        |
 | Field Use: 1 rev/3hr   | 1 rotation every 3 hours    | 0.0056        |
