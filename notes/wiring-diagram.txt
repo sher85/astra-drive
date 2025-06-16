@@ -1,0 +1,51 @@
+Stepper Motor Wiring (28BYJ-48):
+- IN1 → D8 (Arduino pin 8)
+- IN2 → D9 (Arduino pin 9)
+- IN3 → D10 (Arduino pin 10)
+- IN4 → D11 (Arduino pin 11)
+- VCC (Red wire) → 5V power supply
+- GND (Blue wire) → Ground
+
+Button Wiring:
+- One leg → D2 (Arduino pin 2) via jumper connected to D12 on breadboard
+- Opposite leg → GND (Ground rail on breadboard) via jumper connected to D14
+- Button straddles columns D and G at rows 12 and 14
+
+Power:
+- Arduino can be powered via USB or 5V battery pack
+- Stepper motor should ideally use a separate 5V power supply for reliability
+
+Notes:
+- Button uses internal pull-up resistor (configured in code)
+- Motor driven with Stepper library at adjustable RPM
+- Confirm jumper wire orientation and breadboard rows
+
+Schematic Summary (Text Format):
+
+POWER SYSTEM
+[Battery Pack]
+  ├─ Positive (+) → Breadboard power rail (red)
+  └─ Negative (–) → Breadboard ground rail (blue)
+
+[Arduino Uno]
+  ├─ USB Power (used to power Arduino only)
+  └─ GND → Breadboard ground rail (blue)
+
+STEPPER MOTOR (28BYJ-48) → ULN2003 DRIVER
+[ULN2003 Driver]
+  ├─ IN1 → Arduino D8
+  ├─ IN2 → Arduino D9
+  ├─ IN3 → Arduino D10
+  ├─ IN4 → Arduino D11
+  ├─ GND → Breadboard ground rail (blue)
+  └─ VCC → Breadboard power rail (red)
+
+PUSH BUTTON (Momentary)
+[Button on breadboard]
+  ├─ Leg 1 (D12) → Arduino D2 via jumper
+  ├─ Leg 2 (D14) → Ground rail via jumper
+  └─ No resistor needed (uses internal pull-up)
+
+BREADBOARD RAILS
+[Red Rail] → Battery + → ULN2003 VCC
+[Blue Rail] → Battery – → ULN2003 GND, Arduino GND, Button GND
