@@ -8,17 +8,15 @@ This project controls a 28BYJ-48 stepper motor via an Arduino using a simple but
 - Adjustable rotation speed via RPM setting
 - Designed for 28BYJ-48 stepper motor (2048 steps per revolution)
 - Compatible with Arduino UNO
-- Can be adapted for longer durations (e.g. 1 rotation per hour)
+- Can be adapted for longer durations (e.g. 1 rotation per hour) or ultra low rpms (i.e. 1 revolution per 4 hours)
 
 ## Wiring
 
-- **Stepper Motor Pins**: IN1 = 8, IN2 = 9, IN3 = 10, IN4 = 11
-- **Button Pin**: 2 (uses internal pull-up resistor)
-- **Power Supply**: Can run on 5V USB or battery bank
+- `wiring-diagram.txt` - Main schematic file.
 
 ## File Overview
 
-- `spinner_control.ino` – Main Arduino sketch
+- `spinner_control.ino` – Main Arduino code
 
 ## Usage
 
@@ -27,13 +25,18 @@ This project controls a 28BYJ-48 stepper motor via an Arduino using a simple but
 3. Upload the code to your Arduino.
 4. Press the button to toggle the motor on or off.
 
-## Future Improvements
 
-- Add low-power rotation mode (e.g. 1 rev per 4 hours)
-- Support for other stepper motors like NEMA 17
-- Add OLED or LED indicator for status feedback
-- Optional acceleration or delay controls
+## Suggested RPM Settings
 
-## License
+| Use Case               | Rotation Rate               | RPM Value     |
+|------------------------|-----------------------------|---------------|
+| Testing (visible spin) | 1 rotation every 12 seconds | 5             |
+| Real-time preview      | 1 rotation every 1 minute   | 1.0           |
+| Field Use: 1 rev/hr    | 1 rotation every 1 hour     | 0.0167        |
+| Field Use: 1 rev/2hr   | 1 rotation every 2 hours    | 0.0083        |
+| Field Use: 1 rev/3hr   | 1 rotation every 3 hours    | 0.0056        |
+| Field Use: 1 rev/4hr   | 1 rotation every 4 hours    | 0.0042        |
+| Field Use: 1 rev/6hr   | 1 rotation every 6 hours    | 0.0028        |
+| Field Use: 1 rev/8hr   | 1 rotation every 8 hours    | 0.0021        |
 
-MIT
+To change the rotation speed, update the `motorSpeedRPM` constant in `spinner_control.ino` with one of the values above.
