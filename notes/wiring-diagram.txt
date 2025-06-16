@@ -19,6 +19,8 @@ Notes:
 - Button uses internal pull-up resistor (configured in code)
 - Motor driven with Stepper library at adjustable RPM
 - Confirm jumper wire orientation and breadboard rows
+- LED lights up solid when motor is running (connected to D3)
+- Ensure LED and resistor are on the same side of the breadboard center gap or bridged properly
 
 Schematic Summary (Text Format):
 
@@ -45,6 +47,13 @@ PUSH BUTTON (Momentary)
   ├─ Leg 1 (D12) → Arduino D2 via jumper
   ├─ Leg 2 (D14) → Ground rail via jumper
   └─ No resistor needed (uses internal pull-up)
+
+LED INDICATOR (Status Light)
+[LED and Resistor on Breadboard]
+  ├─ LED Anode (+, long leg) → C5
+  ├─ LED Cathode (–, short leg) → C6
+  ├─ Resistor → A6 → Breadboard ground rail (blue)
+  └─ Arduino D3 (via jumper) → C5
 
 BREADBOARD RAILS
 [Red Rail] → Battery + → ULN2003 VCC
