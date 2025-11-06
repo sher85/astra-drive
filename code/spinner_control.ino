@@ -1,47 +1,129 @@
-#include <Stepper.h>
+// MilkyWay Spinner – refactor-ready motor controller
+// Supports today's ULN2003+28BYJ-48 and a future STEP/DIR (e.g., NEMA‑17 + A4988/DRV8825)
+// Paste directly into the Arduino IDE.
 
-// Constants
-const int stepsPerRevolution = 2048; // for 28BYJ-48 stepper motor
-const float motorSpeedRPM = 0.0042;  // For 1 rev every 4 hours
-const int buttonPin = 2;             // Button input pin
-const int ledPin = 3;                // LED control pin
+#include <AccelStepper.h>
 
-// Create Stepper instance (pin order: IN1, IN3, IN2, IN4)
-Stepper myStepper(stepsPerRevolution, 8, 10, 9, 11);
+// ========================= DRIVER SELECTION =========================
+// Pick ONE of the following by uncommenting it. Default: ULN2003 28BYJ‑48.
+#define DRIVER_ULN2003_28BYJ
+// #define DRIVER_STEP_DIR  // e.g., NEMA‑17 + A4988/DRV8825/STEP-DIR driver
+// ===================================================================
 
-// State tracking
+// ========================= SPEED PRESETS ============================
+// Human-friendly speeds (one revolution per X time). Change PRESET.
+enum SpeedPreset { REV_4H, REV_2H, REV_1MIN, REV_10S };
+SpeedPreset PRESET = REV_4H;  // <— change this to pick a different speed
+
+static inline float rpmForPreset(SpeedPreset p) {
+  switch (p) {
+    case REV_4H:   return 60.0f / 14400.0f; // 4 hours
+    case REV_2H:   return 60.0f /  7200.0f; // 2 hours
+    case REV_1MIN: return 1.0f;             // 1 minute
+    case REV_10S:  return 6.0f;             // 10 seconds
+    default:       return 60.0f / 14400.0f;
+  }
+}
+// ===================================================================
+
+// ========================= IO PINS ==================================
+const int buttonPin = 2;  // momentary to GND; uses INPUT_PULLUP
+const int ledPin    = 3;  // status LED mirrors motor state
+
+#if defined(DRIVER_ULN2003_28BYJ)
+  // ULN2003 + 28BYJ‑48 wiring (IN1, IN3, IN2, IN4 order)
+  const int IN1 = 8, IN2 = 10, IN3 = 9, IN4 = 11;
+  AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN2, IN3, IN4);
+#elif defined(DRIVER_STEP_DIR)
+  // STEP/DIR driver (A4988/DRV8825/TMC)—adjust pins to your wiring
+  const int STEP_PIN = 8;
+  const int DIR_PIN  = 9;
+  AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
+#else
+  #error "Select a driver: define DRIVER_ULN2003_28BYJ or DRIVER_STEP_DIR"
+#endif
+// ===================================================================
+
+// ========================= MOTOR COUNTS =============================
+// Define how many *commanded* steps equal one output-shaft revolution.
+// ULN2003+28BYJ-48 with HALF4WIRE runs half-steps; typical gearbox ≈ 1:64.
+//  - 28BYJ full-step count ≈ 2048 steps/rev
+//  - 28BYJ half-step count ≈ 4096 steps/rev (smoother, our default)
+// For STEP/DIR drivers, effective steps = motor_base_steps * MICROSTEP.
+#if defined(DRIVER_ULN2003_28BYJ)
+  const long STEPS_PER_REV = 4096L;  // half-step equivalent for most 28BYJ-48 sets
+#elif defined(DRIVER_STEP_DIR)
+  const int  BASE_STEPS_PER_REV = 200;  // NEMA‑17 1.8° = 200 full steps/rev
+  const int  MICROSTEP          = 16;   // match your driver jumpers (1,2,4,8,16,32…)
+  const long STEPS_PER_REV      = (long)BASE_STEPS_PER_REV * MICROSTEP;
+#endif
+// ===================================================================
+
+// ========================= STATE ====================================
 bool motorOn = false;
-int lastButtonState = HIGH;
-unsigned long lastStepTime = 0;
-const unsigned long stepIntervalMicros = (unsigned long)(1000000.0 / (motorSpeedRPM * stepsPerRevolution / 60.0)); // µs per step
+int  lastButton = HIGH;
+unsigned long lastDebounceMs = 0;
+const unsigned long debounceMs = 25;
+
+// Derived speed (steps per second)
+float rpm = 0.0f;
+float sps = 0.0f;  // steps per second
+// ===================================================================
+
+void configureSpeedFromPreset() {
+  rpm = rpmForPreset(PRESET);
+  sps = rpm * (float)STEPS_PER_REV / 60.0f;  // AccelStepper expects steps/second
+  // Reasonable safety limits to avoid nonsense if counts are mis-set
+  if (sps < 0.0001f) sps = 0.0001f;
+  if (sps > 5000.0f) sps = 5000.0f; // protect against accidental super-high speeds
+  stepper.setMaxSpeed( max(1000.0f, sps * 2.0f) ); // headroom over target speed
+  stepper.setAcceleration(0.0f); // constant speed for long exposures
+  stepper.setSpeed(sps);
+}
 
 void setup() {
-  pinMode(buttonPin, INPUT_PULLUP); // Button with internal pull-up
-  pinMode(ledPin, OUTPUT);          // Set LED pin as output
-  digitalWrite(ledPin, LOW);        // Ensure LED starts off
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
   Serial.begin(9600);
-  myStepper.setSpeed(5);            // Required by library, not used in timed stepping
+
+  configureSpeedFromPreset();
+  stepper.disableOutputs(); // coils off when not running (cool & quiet)
+
+  // --- Console summary ---
+  Serial.println("MilkyWay Spinner – Refactor-Ready");
+#if defined(DRIVER_ULN2003_28BYJ)
+  Serial.println("Driver: ULN2003 + 28BYJ-48 (HALF4WIRE)");
+#elif defined(DRIVER_STEP_DIR)
+  Serial.print("Driver: STEP/DIR  (microstep = "); Serial.print(MICROSTEP); Serial.println(")");
+#endif
+  Serial.print("STEPS_PER_REV: "); Serial.println(STEPS_PER_REV);
+  Serial.print("Preset RPM:    "); Serial.println(rpm, 6);
+  Serial.print("Steps/sec:     "); Serial.println(sps, 6);
 }
 
 void loop() {
-  int buttonState = digitalRead(buttonPin);
-
-  // Toggle motor on button press
-  if (buttonState == LOW && lastButtonState == HIGH) {
-    motorOn = !motorOn;
-    Serial.println(motorOn ? "Motor ON" : "Motor OFF");
-
-    // LED matches motor state
-    digitalWrite(ledPin, motorOn ? HIGH : LOW);
-
-    delay(250); // Debounce delay
+  // --- Debounced button toggle ---
+  int reading = digitalRead(buttonPin);
+  if (reading != lastButton) {
+    lastDebounceMs = millis();
   }
+  if (millis() - lastDebounceMs > debounceMs) {
+    static int lastStable = HIGH;
+    if (reading != lastStable) {
+      lastStable = reading;
+      if (reading == LOW) {
+        motorOn = !motorOn;
+        digitalWrite(ledPin, motorOn ? HIGH : LOW);
+        Serial.println(motorOn ? "Motor ON" : "Motor OFF");
+        if (motorOn) stepper.enableOutputs(); else stepper.disableOutputs();
+      }
+    }
+  }
+  lastButton = reading;
 
-  lastButtonState = buttonState;
-
-  // Run motor at ultra-slow interval
-  if (motorOn && (micros() - lastStepTime >= stepIntervalMicros)) {
-    myStepper.step(1);  // Take a single step
-    lastStepTime = micros();
+  // --- Run motor when ON (non-blocking) ---
+  if (motorOn) {
+    stepper.runSpeed();
   }
 }
