@@ -36,9 +36,10 @@ This document provides a complete wiring reference for the MilkyWay Spinner setu
 
 - The ULN2003 driver board acts as an interface between the Arduino and the stepper motor, providing the necessary current and voltage.
 - **Push button:** one leg → **I12** (connected to **D2** via jumper), other leg → **I14** → **GND** (active-low using Arduino’s `INPUT_PULLUP`).
-- The LED includes a current-limiting resistor (R1, typically 220Ω) in series with the cathode to prevent damage.
+- The LED includes a current-limiting resistor (R1, 220–330Ω recommended) in series with the cathode to prevent damage.
 - Ensure all grounds (Arduino, ULN2003, button, LED, battery pack) are common to avoid erratic behavior.
-- Decoupling capacitors C1 (100 µF electrolytic) located at F30 (positive lead) and F29 (negative lead) across ULN2003 VCC and GND nodes, and C2 (0.1 µF ceramic) located at C30/C29 across the same VCC–GND nodes.
+- Wiring to the ULN2003 board is sequential IN1 → IN2 → IN3 → IN4; the AccelStepper library internally handles coil sequencing by using a 1,3,2,4 software order.
+- Decoupling capacitors C1 (100 µF electrolytic) located at F30 (positive lead) and F29 (negative lead) across ULN2003 VCC and GND nodes, and C2 (0.1 µF ceramic) located at C30/C29 across the same VCC–GND nodes. Place these capacitors physically close to the ULN2003 board's VCC and GND pins for best stability.
 
 ---
 

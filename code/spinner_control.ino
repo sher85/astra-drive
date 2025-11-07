@@ -13,7 +13,7 @@
 // ========================= SPEED PRESETS ============================
 // Human-friendly speeds (one revolution per X time). Change PRESET.
 enum SpeedPreset { REV_4H, REV_2H, REV_1MIN, REV_10S };
-SpeedPreset PRESET = REV_4H;  // <— change this to pick a different speed
+SpeedPreset PRESET = REV_10S;  // <— change this to pick a different speed
 
 static inline float rpmForPreset(SpeedPreset p) {
   switch (p) {
@@ -31,9 +31,13 @@ const int buttonPin = 2;  // momentary to GND; uses INPUT_PULLUP
 const int ledPin    = 3;  // status LED mirrors motor state
 
 #if defined(DRIVER_ULN2003_28BYJ)
-  // ULN2003 + 28BYJ‑48 wiring (IN1, IN3, IN2, IN4 order)
-  const int IN1 = 8, IN2 = 10, IN3 = 9, IN4 = 11;
-  AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN2, IN3, IN4);
+  // ULN2003 + 28BYJ‑48 wiring (AccelStepper expects pins in 1,3,2,4 order)
+  // Keep physical wiring sequential 1→2→3→4 and express sequence in software
+  const int IN1_PIN = 8;   // ULN2003 IN1 → Arduino D8
+  const int IN2_PIN = 9;   // ULN2003 IN2 → Arduino D9
+  const int IN3_PIN = 10;  // ULN2003 IN3 → Arduino D10
+  const int IN4_PIN = 11;  // ULN2003 IN4 → Arduino D11
+  AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN3_PIN, IN2_PIN, IN4_PIN);
 #elif defined(DRIVER_STEP_DIR)
   // STEP/DIR driver (A4988/DRV8825/TMC)—adjust pins to your wiring
   const int STEP_PIN = 8;
