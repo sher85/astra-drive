@@ -31,13 +31,32 @@ const int buttonPin = 2;  // momentary to GND; uses INPUT_PULLUP
 const int ledPin    = 3;  // status LED mirrors motor state
 
 #if defined(DRIVER_ULN2003_28BYJ)
-  // ULN2003 + 28BYJ‑48 wiring (AccelStepper expects pins in 1,3,2,4 order)
-  // Keep physical wiring sequential 1→2→3→4 and express sequence in software
+  // ULN2003 + 28BYJ‑48 wiring
+  // Keep physical wiring sequential IN1→IN2→IN3→IN4 on the board.
+  // AccelStepper’s HALF4WIRE needs a *software* sequence; different boards sometimes want a different order.
+  // Set ULN2003_PIN_SEQUENCE to one of: 1324, 1234, 1423, 1243
+  #define ULN2003_PIN_SEQUENCE 1324
+
   const int IN1_PIN = 8;   // ULN2003 IN1 → Arduino D8
   const int IN2_PIN = 9;   // ULN2003 IN2 → Arduino D9
   const int IN3_PIN = 10;  // ULN2003 IN3 → Arduino D10
   const int IN4_PIN = 11;  // ULN2003 IN4 → Arduino D11
-  AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN3_PIN, IN2_PIN, IN4_PIN);
+
+  #if   ULN2003_PIN_SEQUENCE == 1324
+    AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN3_PIN, IN2_PIN, IN4_PIN);
+    const char* SEQ_LABEL = "1,3,2,4";
+  #elif ULN2003_PIN_SEQUENCE == 1234
+    AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN2_PIN, IN3_PIN, IN4_PIN);
+    const char* SEQ_LABEL = "1,2,3,4";
+  #elif ULN2003_PIN_SEQUENCE == 1423
+    AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN4_PIN, IN2_PIN, IN3_PIN);
+    const char* SEQ_LABEL = "1,4,2,3";
+  #elif ULN2003_PIN_SEQUENCE == 1243
+    AccelStepper stepper(AccelStepper::HALF4WIRE, IN1_PIN, IN2_PIN, IN4_PIN, IN3_PIN);
+    const char* SEQ_LABEL = "1,2,4,3";
+  #else
+    #error "Invalid ULN2003_PIN_SEQUENCE (use 1324, 1234, 1423, or 1243)"
+  #endif
 #elif defined(DRIVER_STEP_DIR)
   // STEP/DIR driver (A4988/DRV8825/TMC)—adjust pins to your wiring
   const int STEP_PIN = 8;
@@ -74,15 +93,45 @@ float rpm = 0.0f;
 float sps = 0.0f;  // steps per second
 // ===================================================================
 
+#if defined(DRIVER_ULN2003_28BYJ)
+void coilSelfTest(unsigned long dwellMs = 400) {
+  Serial.println("[TEST] Starting ULN2003 coil self-test (IN1→IN2→IN3→IN4)");
+  stepper.disableOutputs();
+  // Ensure inputs are OUTPUTs
+  pinMode(IN1_PIN, OUTPUT);
+  pinMode(IN2_PIN, OUTPUT);
+  pinMode(IN3_PIN, OUTPUT);
+  pinMode(IN4_PIN, OUTPUT);
+  auto allLow = [](){
+    digitalWrite(IN1_PIN, LOW);
+    digitalWrite(IN2_PIN, LOW);
+    digitalWrite(IN3_PIN, LOW);
+    digitalWrite(IN4_PIN, LOW);
+  };
+  allLow();
+  // Energize each coil one by one so board LEDs should light 1→2→3→4
+  digitalWrite(IN1_PIN, HIGH); Serial.println("[TEST] IN1 HIGH"); delay(dwellMs); allLow(); delay(100);
+  digitalWrite(IN2_PIN, HIGH); Serial.println("[TEST] IN2 HIGH"); delay(dwellMs); allLow(); delay(100);
+  digitalWrite(IN3_PIN, HIGH); Serial.println("[TEST] IN3 HIGH"); delay(dwellMs); allLow(); delay(100);
+  digitalWrite(IN4_PIN, HIGH); Serial.println("[TEST] IN4 HIGH"); delay(dwellMs); allLow();
+  Serial.println("[TEST] Coil self-test complete. Re-enabling stepper outputs.");
+  stepper.enableOutputs();
+}
+#endif
+
 void configureSpeedFromPreset() {
   rpm = rpmForPreset(PRESET);
   sps = rpm * (float)STEPS_PER_REV / 60.0f;  // AccelStepper expects steps/second
-  // Reasonable safety limits to avoid nonsense if counts are mis-set
   if (sps < 0.0001f) sps = 0.0001f;
-  if (sps > 5000.0f) sps = 5000.0f; // protect against accidental super-high speeds
-  stepper.setMaxSpeed( max(1000.0f, sps * 2.0f) ); // headroom over target speed
-  stepper.setAcceleration(0.0f); // constant speed for long exposures
+  if (sps > 5000.0f) sps = 5000.0f;
+
+  stepper.setMaxSpeed(max(1000.0f, sps * 2.0f));
+  stepper.setAcceleration(0.0f);
   stepper.setSpeed(sps);
+
+  Serial.print("[CONFIG] RPM: "); Serial.println(rpm, 6);
+  Serial.print("[CONFIG] Steps per sec: "); Serial.println(sps, 6);
+  Serial.println("[CONFIG] Speed configured.");
 }
 
 void setup() {
@@ -102,11 +151,28 @@ void setup() {
   Serial.print("Driver: STEP/DIR  (microstep = "); Serial.print(MICROSTEP); Serial.println(")");
 #endif
   Serial.print("STEPS_PER_REV: "); Serial.println(STEPS_PER_REV);
+#if defined(DRIVER_ULN2003_28BYJ)
+  Serial.print("Pin sequence:  "); Serial.println(SEQ_LABEL);
+#endif
   Serial.print("Preset RPM:    "); Serial.println(rpm, 6);
   Serial.print("Steps/sec:     "); Serial.println(sps, 6);
+  #if defined(DRIVER_ULN2003_28BYJ)
+    Serial.println("[HINT] Send 't' in Serial Monitor to run coil self-test.");
+  #endif
 }
 
 void loop() {
+  // --- Serial commands (diagnostics) ---
+  if (Serial.available()) {
+    int c = Serial.read();
+    if (c == 't' || c == 'T') {
+#if defined(DRIVER_ULN2003_28BYJ)
+      coilSelfTest();
+#else
+      Serial.println("[TEST] Coil self-test only available for ULN2003 build.");
+#endif
+    }
+  }
   // --- Debounced button toggle ---
   int reading = digitalRead(buttonPin);
   if (reading != lastButton) {
@@ -119,8 +185,17 @@ void loop() {
       if (reading == LOW) {
         motorOn = !motorOn;
         digitalWrite(ledPin, motorOn ? HIGH : LOW);
-        Serial.println(motorOn ? "Motor ON" : "Motor OFF");
-        if (motorOn) stepper.enableOutputs(); else stepper.disableOutputs();
+        Serial.println(motorOn ? "[BUTTON] Motor ON" : "[BUTTON] Motor OFF");
+
+        if (motorOn) {
+          stepper.enableOutputs();
+          Serial.println("[STEP] Outputs enabled.");
+          Serial.print("[STEP] Using "); Serial.print(STEPS_PER_REV);
+          Serial.print(" steps/rev @ "); Serial.print(sps); Serial.println(" steps/sec");
+        } else {
+          stepper.disableOutputs();
+          Serial.println("[STEP] Outputs disabled.");
+        }
       }
     }
   }
@@ -129,5 +204,11 @@ void loop() {
   // --- Run motor when ON (non-blocking) ---
   if (motorOn) {
     stepper.runSpeed();
+    long pos = stepper.currentPosition();
+    static unsigned long lastLog = 0;
+    if (millis() - lastLog > 1000) {
+      Serial.print("[RUN] runSpeed() executing... pos="); Serial.println(pos);
+      lastLog = millis();
+    }
   }
 }
