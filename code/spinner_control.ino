@@ -1,4 +1,4 @@
-// MilkyWay Spinner – refactor-ready motor controller
+// MilkyWay Spinner
 // Supports today's ULN2003+28BYJ-48 and a future STEP/DIR (e.g., NEMA‑17 + A4988/DRV8825)
 // Paste directly into the Arduino IDE.
 
@@ -128,10 +128,6 @@ void configureSpeedFromPreset() {
   stepper.setMaxSpeed(max(1000.0f, sps * 2.0f));
   stepper.setAcceleration(0.0f);
   stepper.setSpeed(sps);
-
-  Serial.print("[CONFIG] RPM: "); Serial.println(rpm, 6);
-  Serial.print("[CONFIG] Steps per sec: "); Serial.println(sps, 6);
-  Serial.println("[CONFIG] Speed configured.");
 }
 
 void setup() {
@@ -144,7 +140,6 @@ void setup() {
   stepper.disableOutputs(); // coils off when not running (cool & quiet)
 
   // --- Console summary ---
-  Serial.println("MilkyWay Spinner – Refactor-Ready");
 #if defined(DRIVER_ULN2003_28BYJ)
   Serial.println("Driver: ULN2003 + 28BYJ-48 (HALF4WIRE)");
 #elif defined(DRIVER_STEP_DIR)
@@ -185,16 +180,12 @@ void loop() {
       if (reading == LOW) {
         motorOn = !motorOn;
         digitalWrite(ledPin, motorOn ? HIGH : LOW);
-        Serial.println(motorOn ? "[BUTTON] Motor ON" : "[BUTTON] Motor OFF");
+        Serial.println(motorOn ? "Motor ON" : "Motor OFF");
 
         if (motorOn) {
           stepper.enableOutputs();
-          Serial.println("[STEP] Outputs enabled.");
-          Serial.print("[STEP] Using "); Serial.print(STEPS_PER_REV);
-          Serial.print(" steps/rev @ "); Serial.print(sps); Serial.println(" steps/sec");
         } else {
           stepper.disableOutputs();
-          Serial.println("[STEP] Outputs disabled.");
         }
       }
     }
@@ -204,11 +195,5 @@ void loop() {
   // --- Run motor when ON (non-blocking) ---
   if (motorOn) {
     stepper.runSpeed();
-    long pos = stepper.currentPosition();
-    static unsigned long lastLog = 0;
-    if (millis() - lastLog > 1000) {
-      Serial.print("[RUN] runSpeed() executing... pos="); Serial.println(pos);
-      lastLog = millis();
-    }
   }
 }
