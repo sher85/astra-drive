@@ -1,120 +1,119 @@
 # MilkyWay Spinner
 
-> ⚙️ Compatible with both the original fixed-RPM implementation and the new modular AccelStepper version.  
-> For current builds, use `spinner_control.ino` with the preset system described below.
+Arduino stepper controller for ultra-slow rotation in long-exposure and astrophotography setups.
 
-A modular, Arduino‑based motion controller designed for **ultra‑slow astrophotography rotations** — ideal for time‑lapses of sculptures, cameras, or turntables under the Milky Way. Built for **simplicity today** and **extensibility tomorrow**.
+MilkyWay Spinner drives a small turntable or sculpture at very slow, repeatable speeds so a subject can rotate smoothly during a night shoot. The current build is centered on an Arduino Uno, a 28BYJ-48 stepper motor, and a ULN2003 driver board, with the sketch already structured to support future STEP/DIR drivers such as an A4988 or DRV8825.
 
-Originally created to rotate a small ballerina sculpture during long‑exposure night photography, the MilkyWay Spinner has evolved into a **refactor‑ready platform** supporting both the **ULN2003 + 28BYJ‑48 stepper motor** and future **STEP/DIR drivers** such as NEMA‑17 with A4988 or DRV8825.
+## What This Repo Contains
 
----
+- [`code/spinner_control.ino`](code/spinner_control.ino): main Arduino sketch
+- [`wiring/wiring-table.md`](wiring/wiring-table.md): detailed breadboard and pin reference
+- [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf): wiring diagram for the current hardware setup
 
-## ✨ Features
+## How It Works
 
-- **Modular Driver Architecture** – switch between `ULN2003_28BYJ` or `STEP_DIR` via a single `#define`
-- **AccelStepper‑based Control** – non‑blocking loop, smooth half‑stepping, minimal jitter
-- **Predefined Speed Presets** – 4h, 2h, 1min, 10s per revolution for easy experimentation
-- **Single‑Button Interface** – press to toggle rotation on/off
-- **LED Status Indicator** – visual feedback for active/inactive state
-- **Extensible Design** – structured for simple refactor to higher‑power motors or multi‑axis systems
+The sketch uses the `AccelStepper` library in a non-blocking loop. A push button toggles the motor on and off, an LED mirrors the motor state, and the selected preset determines how long one full revolution should take.
 
----
+Current supported modes:
 
-## 🧠 Architecture Overview
+- `DRIVER_ULN2003_28BYJ`: default build for `28BYJ-48 + ULN2003`
+- `DRIVER_STEP_DIR`: future-ready mode for STEP/DIR drivers like `A4988` or `DRV8825`
 
+Current speed presets:
+
+- `REV_4H`: one revolution every 4 hours
+- `REV_2H`: one revolution every 2 hours
+- `REV_1MIN`: one revolution every 1 minute
+- `REV_10S`: one revolution every 10 seconds
+
+The sketch currently defaults to:
+
+```cpp
+#define DRIVER_ULN2003_28BYJ
+SpeedPreset PRESET = REV_10S;
 ```
-[Button + LED]
-       ↓
-   Arduino Logic
-       ↓
-[Driver Interface Layer] ← selectable: ULN2003 (HALF4WIRE) or STEP/DIR (A4988/DRV8825)
-       ↓
- [Stepper Motor]
-```
 
-`spinner_control.ino` separates the **user interface**, **speed presets**, and **motor driver abstraction**, making it easy to modify or extend the system for different motor types or control strategies.
+## Hardware
 
----
+Required for the current default build:
 
-## 🧰 Requirements
+- Arduino Uno or compatible board
+- 28BYJ-48 stepper motor
+- ULN2003 driver board
+- Momentary push button
+- LED and 220-330 ohm resistor
+- External battery pack for the motor/driver
+- Common ground shared between Arduino and motor supply
 
-- **Arduino UNO** (or compatible)
-- **AccelStepper library** (install from Arduino Library Manager)
-- **28BYJ‑48 stepper motor + ULN2003 driver board** *(default)*
-- Optional future: **NEMA‑17 + A4988/DRV8825**
+Software dependency:
 
----
+- `AccelStepper` library installed through Arduino Library Manager
 
-## ⚙️ Setup & Wiring
+## Wiring Summary
 
-Refer to [`wiring/wiring-table.md`](wiring/wiring-table.md) for pin connections.
+For the full layout, use [`wiring/wiring-table.md`](wiring/wiring-table.md) and [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf).
+
+Core Arduino connections for the current sketch:
 
 | Component | Arduino Pin | Notes |
-|------------|-------------|-------|
-| IN1 | D8 | Stepper driver IN1 |
-| IN2 | D10 | Stepper driver IN3 (note order) |
-| IN3 | D9 | Stepper driver IN2 |
-| IN4 | D11 | Stepper driver IN4 |
-| Button | D2 | Active‑low, uses `INPUT_PULLUP` |
-| LED | D3 | Mirrors motor state |
-| Power | 4×AA pack (~4.8 V) | Feeds ULN2003/motor |
+| --- | --- | --- |
+| ULN2003 `IN1` | `D8` | Physical wiring |
+| ULN2003 `IN2` | `D9` | Physical wiring |
+| ULN2003 `IN3` | `D10` | Physical wiring |
+| ULN2003 `IN4` | `D11` | Physical wiring |
+| Button | `D2` | Active-low with `INPUT_PULLUP` |
+| LED | `D3` | Mirrors motor on/off state |
 
-All grounds (Arduino + ULN2003 + power pack) must share a **common reference**.
+Important:
 
----
+- Keep the ULN2003 board wired physically in order: `IN1 -> IN2 -> IN3 -> IN4`
+- The sketch may use a different internal software stepping sequence for smooth motion
+- All grounds must be tied together
 
-## 🚀 Usage
+## Setup
 
-1. Open `spinner_control.ino` in Arduino IDE.
-2. In the **Driver Selection** section, confirm your hardware:
-   ```cpp
-   #define DRIVER_ULN2003_28BYJ   // for 28BYJ‑48 + ULN2003
-   // #define DRIVER_STEP_DIR      // for NEMA‑17 + A4988/DRV8825
-   ```
-3. Choose your desired preset:
-   ```cpp
-   SpeedPreset PRESET = REV_4H;  // REV_2H, REV_1MIN, or REV_10S
-   ```
-4. Upload the sketch and open the **Serial Monitor** to confirm configuration.
-5. Press the button to toggle motion. The LED indicates the active state.
+1. Install the `AccelStepper` library in Arduino IDE.
+2. Open [`code/spinner_control.ino`](code/spinner_control.ino).
+3. Confirm the driver selection at the top of the file.
+4. Set the speed preset you want.
+5. Upload the sketch to the Arduino.
+6. Open Serial Monitor at `9600` baud to confirm the active configuration.
+7. Press the button to toggle the motor on and off.
 
----
+## Serial Diagnostics
 
-## 🧮 Technical Details
+When using the default ULN2003 build, you can send `t` in Serial Monitor to run a coil self-test. This energizes each ULN2003 output in sequence so you can verify the board LEDs and coil order.
 
-### Step Calculations
-- **28BYJ‑48 (half‑step)** ≈ 4096 steps per output‑shaft revolution (32 × 64 gearbox × 2 half‑steps)
-- **NEMA‑17 (1.8°)** = 200 full steps/rev × microstep setting (e.g., ×16 = 3200 steps/rev)
+## Technical Notes
 
-The controller computes `stepsPerSecond = RPM × stepsPerRevolution / 60`, ensuring constant, non‑blocking motion via `runSpeed()`.
+- The default 28BYJ-48 configuration assumes about `4096` half-steps per output shaft revolution
+- Speed is converted into steps per second and applied with `runSpeed()`
+- `stepper.disableOutputs()` is used when idle to reduce heat and power draw
+- Debounce logic is built into the button handler
+- The sketch caps very large step rates to avoid unrealistic or unsafe values
 
-### Speed Presets
-| Preset | One Revolution Every | RPM |
-|--------|----------------------|-----|
-| REV_4H | 4 hours | 0.00417 |
-| REV_2H | 2 hours | 0.00833 |
-| REV_1MIN | 1 minute | 1.0 |
-| REV_10S | 10 seconds | 6.0 |
+## Project Structure
 
----
+This repo is small and purpose-built:
 
-## 🧩 Engineering Notes
+- The sketch is the main product
+- The wiring docs support assembly and troubleshooting
+- The code is written to stay simple for the current sculpture/turntable use case while leaving room for a stronger motor and driver later
 
-- **Non‑blocking architecture:** AccelStepper’s `runSpeed()` allows other tasks (e.g., sensors or future multi‑motor sync) to execute concurrently.
-- **Safe speed caps:** RPM automatically limited to prevent damage or runaway values.
-- **Modular constants:** `STEPS_PER_REV` and `MICROSTEP` isolate hardware parameters from control logic.
-- **Power efficiency:** `stepper.disableOutputs()` cuts coil current when idle.
+## Good Next Improvements
 
----
+- Add a runtime menu for switching presets without editing the sketch
+- Persist the selected preset in EEPROM
+- Add direction control or reversible motion
+- Add camera trigger or intervalometer sync
+- Add tested STEP/DIR wiring and defaults for a NEMA-17 upgrade
 
-## 🔮 Future Development
+## Who This Is For
 
-- Add runtime serial menu to change presets without recompiling
-- Integrate camera trigger synchronization
-- Upgrade path to NEMA‑17 with DRV8825/A4988
-- Expand to multi‑axis astrophotography mounts
+This project is a good fit for:
 
----
+- Astrophotography and timelapse experiments
+- Slow-rotation display platforms
+- Arduino users who want a practical stepper project with a clear upgrade path
 
 ### Created by Mauricio Castro
-*Designed for long‑exposure astrophotography enthusiasts and engineers alike.*
