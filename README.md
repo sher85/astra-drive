@@ -100,6 +100,17 @@ This repo is small and purpose-built:
 - The wiring docs support assembly and troubleshooting
 - The code is written to stay simple for the current sculpture/turntable use case while leaving room for a stronger motor and driver later
 
+## Versioning And Releases
+
+This repo uses `release-please` for automated versioning and GitHub Releases.
+
+- Release metadata lives in `version.txt` and `CHANGELOG.md`
+- The release workflow runs from `.github/workflows/release-please.yml`
+- Future release PRs are driven by Conventional Commit messages such as `feat:` and `fix:`
+- The repository is bootstrapped at `0.1.0` as the first documented baseline
+
+If you want the current state published as an actual GitHub release, create a one-time `v0.1.0` tag/release from the current `main` branch. After that, `release-please` can manage subsequent releases automatically.
+
 ## Good Next Improvements
 
 - Add a runtime menu for switching presets without editing the sketch
