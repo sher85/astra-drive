@@ -109,7 +109,7 @@ This repo uses `release-please` for automated versioning and GitHub Releases.
 - Future release PRs are driven by Conventional Commit messages such as `feat:` and `fix:`
 - The repository is bootstrapped at `0.1.0` as the first documented baseline
 
-If you want the current state published as an actual GitHub release, create a one-time `v0.1.0` tag/release from the current `main` branch. After that, `release-please` can manage subsequent releases automatically.
+If you want the current state published as an actual GitHub release, create a one-time `v0.1.0` tag/release from the current `main` branch. After that, push releasable `feat:` or `fix:` commits to `main`; `release-please` will open a release PR, and merging that PR will publish the GitHub Release automatically.
 
 ## Good Next Improvements
 
