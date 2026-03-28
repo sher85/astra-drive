@@ -3,6 +3,7 @@
 // Paste directly into the Arduino IDE.
 
 #include <AccelStepper.h>
+#include <EEPROM.h>
 
 // ========================= DRIVER SELECTION =========================
 // Pick ONE of the following by uncommenting it. Default: ULN2003 28BYJ‑48.
@@ -13,7 +14,17 @@
 // ========================= SPEED PRESETS ============================
 // Human-friendly speeds (one revolution per X time). Change PRESET.
 enum SpeedPreset { REV_4H, REV_2H, REV_1MIN, REV_10S };
-SpeedPreset PRESET = REV_10S;  // <— change this to pick a different speed
+const uint8_t PRESET_COUNT = 4;
+const SpeedPreset PRESET_SEQUENCE[PRESET_COUNT] = {
+  REV_10S,
+  REV_1MIN,
+  REV_2H,
+  REV_4H
+};
+SpeedPreset PRESET = REV_10S;  // <— bench-test friendly default; change this for the final display speed
+
+const int PRESET_EEPROM_ADDR = 0;
+const unsigned long longPressMs = 900;
 
 static inline float rpmForPreset(SpeedPreset p) {
   switch (p) {
@@ -85,13 +96,97 @@ const int ledPin    = 3;  // status LED mirrors motor state
 // ========================= STATE ====================================
 bool motorOn = false;
 int  lastButton = HIGH;
+int  stableButton = HIGH;
 unsigned long lastDebounceMs = 0;
+unsigned long buttonPressedAtMs = 0;
 const unsigned long debounceMs = 25;
 
 // Derived speed (steps per second)
 float rpm = 0.0f;
 float sps = 0.0f;  // steps per second
 // ===================================================================
+
+static inline bool isValidPresetByte(uint8_t raw) {
+  return raw < PRESET_COUNT;
+}
+
+const char* labelForPreset(SpeedPreset p) {
+  switch (p) {
+    case REV_4H:   return "REV_4H";
+    case REV_2H:   return "REV_2H";
+    case REV_1MIN: return "REV_1MIN";
+    case REV_10S:  return "REV_10S";
+    default:       return "UNKNOWN";
+  }
+}
+
+uint8_t sequenceIndexForPreset(SpeedPreset p) {
+  for (uint8_t i = 0; i < PRESET_COUNT; ++i) {
+    if (PRESET_SEQUENCE[i] == p) return i;
+  }
+  return 0;
+}
+
+uint8_t blinkCountForPreset(SpeedPreset p) {
+  return sequenceIndexForPreset(p) + 1u;
+}
+
+void savePresetToEeprom() {
+  EEPROM.update(PRESET_EEPROM_ADDR, (uint8_t)PRESET);
+}
+
+void loadPresetFromEeprom() {
+  uint8_t raw = EEPROM.read(PRESET_EEPROM_ADDR);
+  if (isValidPresetByte(raw)) {
+    PRESET = (SpeedPreset)raw;
+  }
+}
+
+void restoreLedState() {
+  digitalWrite(ledPin, motorOn ? HIGH : LOW);
+}
+
+void blinkSelectedPreset() {
+  const uint8_t count = blinkCountForPreset(PRESET);
+  for (uint8_t i = 0; i < count; ++i) {
+    digitalWrite(ledPin, HIGH);
+    delay(170);
+    digitalWrite(ledPin, LOW);
+    delay((i + 1u < count) ? 170 : 280);
+  }
+  restoreLedState();
+}
+
+void printActivePreset() {
+  Serial.print("Preset:        ");
+  Serial.println(labelForPreset(PRESET));
+  Serial.print("Preset RPM:    ");
+  Serial.println(rpm, 6);
+  Serial.print("Steps/sec:     ");
+  Serial.println(sps, 6);
+}
+
+void toggleMotorState() {
+  motorOn = !motorOn;
+  restoreLedState();
+  Serial.println(motorOn ? "Motor ON" : "Motor OFF");
+
+  if (motorOn) {
+    stepper.enableOutputs();
+  } else {
+    stepper.disableOutputs();
+  }
+}
+
+void advancePreset() {
+  uint8_t nextIndex = (uint8_t)((sequenceIndexForPreset(PRESET) + 1u) % PRESET_COUNT);
+  PRESET = PRESET_SEQUENCE[nextIndex];
+  configureSpeedFromPreset();
+  savePresetToEeprom();
+  Serial.println("[BUTTON] Preset changed.");
+  printActivePreset();
+  blinkSelectedPreset();
+}
 
 #if defined(DRIVER_ULN2003_28BYJ)
 void coilSelfTest(unsigned long dwellMs = 400) {
@@ -136,6 +231,7 @@ void setup() {
   digitalWrite(ledPin, LOW);
   Serial.begin(9600);
 
+  loadPresetFromEeprom();
   configureSpeedFromPreset();
   stepper.disableOutputs(); // coils off when not running (cool & quiet)
 
@@ -149,11 +245,13 @@ void setup() {
 #if defined(DRIVER_ULN2003_28BYJ)
   Serial.print("Pin sequence:  "); Serial.println(SEQ_LABEL);
 #endif
-  Serial.print("Preset RPM:    "); Serial.println(rpm, 6);
-  Serial.print("Steps/sec:     "); Serial.println(sps, 6);
+  printActivePreset();
   #if defined(DRIVER_ULN2003_28BYJ)
     Serial.println("[HINT] Send 't' in Serial Monitor to run coil self-test.");
   #endif
+  Serial.println("[HINT] Short press button to toggle motor on/off.");
+  Serial.println("[HINT] Long press while stopped to cycle presets (saved to EEPROM).");
+  blinkSelectedPreset();
 }
 
 void loop() {
@@ -174,18 +272,20 @@ void loop() {
     lastDebounceMs = millis();
   }
   if (millis() - lastDebounceMs > debounceMs) {
-    static int lastStable = HIGH;
-    if (reading != lastStable) {
-      lastStable = reading;
-      if (reading == LOW) {
-        motorOn = !motorOn;
-        digitalWrite(ledPin, motorOn ? HIGH : LOW);
-        Serial.println(motorOn ? "Motor ON" : "Motor OFF");
-
-        if (motorOn) {
-          stepper.enableOutputs();
+    if (reading != stableButton) {
+      stableButton = reading;
+      if (stableButton == LOW) {
+        buttonPressedAtMs = millis();
+      } else {
+        unsigned long heldMs = millis() - buttonPressedAtMs;
+        if (heldMs >= longPressMs) {
+          if (motorOn) {
+            Serial.println("[BUTTON] Stop the motor first to change presets.");
+          } else {
+            advancePreset();
+          }
         } else {
-          stepper.disableOutputs();
+          toggleMotorState();
         }
       }
     }
