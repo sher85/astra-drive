@@ -1,18 +1,26 @@
 # MilkyWay Spinner
 
-Arduino stepper controller for ultra-slow rotation in long-exposure and astrophotography setups.
+Arduino stepper controller for ultra-slow, controlled rotation in lightweight display and photography setups.
 
-MilkyWay Spinner drives a small turntable or sculpture at very slow, repeatable speeds so a subject can rotate smoothly during a night shoot. The current build is centered on an Arduino Uno, a 28BYJ-48 stepper motor, and a ULN2003 driver board, with the sketch already structured to support future STEP/DIR drivers such as an A4988 or DRV8825.
+MilkyWay Spinner drives a small rotating display, including a lightweight ballerina figure, at very slow and repeatable speeds. The current build is centered on an Arduino Uno, a 28BYJ-48 stepper motor, and a ULN2003 driver board, with the sketch already structured to support future STEP/DIR drivers such as an A4988 or DRV8825.
 
 ## What This Repo Contains
 
 - [`code/spinner_control.ino`](code/spinner_control.ino): main Arduino sketch
 - [`wiring/wiring-table.md`](wiring/wiring-table.md): detailed breadboard and pin reference
-- [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf): wiring diagram for the current hardware setup
+- [`wiring/wiring-diagram.png`](wiring/wiring-diagram.png): primary wiring diagram for the current hardware setup
+- [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf): PDF export of the wiring diagram
 
 ## How It Works
 
 The sketch uses the `AccelStepper` library in a non-blocking loop. A push button toggles the motor on and off, an LED mirrors the motor state, and the selected preset determines how long one full revolution should take.
+
+Field-friendly controls are built in:
+
+- Short press: toggle the motor on or off
+- Long press while stopped: cycle to the next speed preset
+- LED blink count: confirms the selected preset (`1` blink = `REV_10S`, `2` = `REV_1MIN`, `3` = `REV_2H`, `4` = `REV_4H`)
+- EEPROM storage: remembers the last selected preset after power is removed
 
 Current supported modes:
 
@@ -33,6 +41,8 @@ The sketch currently defaults to:
 SpeedPreset PRESET = REV_10S;
 ```
 
+`REV_10S` is a bring-up and testing default so motion is easy to verify right after upload. For the actual slow-rotation display use case, switch to one of the slower presets before running the finished assembly.
+
 ## Hardware
 
 Required for the current default build:
@@ -51,7 +61,7 @@ Software dependency:
 
 ## Wiring Summary
 
-For the full layout, use [`wiring/wiring-table.md`](wiring/wiring-table.md) and [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf).
+For the full layout, use [`wiring/wiring-table.md`](wiring/wiring-table.md), [`wiring/wiring-diagram.png`](wiring/wiring-diagram.png), and [`wiring/wiring-diagram.pdf`](wiring/wiring-diagram.pdf).
 
 Core Arduino connections for the current sketch:
 
@@ -75,14 +85,25 @@ Important:
 1. Install the `AccelStepper` library in Arduino IDE.
 2. Open [`code/spinner_control.ino`](code/spinner_control.ino).
 3. Confirm the driver selection at the top of the file.
-4. Set the speed preset you want.
+4. Optionally change the default preset in code, or use the built-in long-press field control after upload.
 5. Upload the sketch to the Arduino.
 6. Open Serial Monitor at `9600` baud to confirm the active configuration.
-7. Press the button to toggle the motor on and off.
+7. Short press the button to toggle the motor on and off.
+8. Long press the button while the motor is stopped to cycle presets.
 
 ## Serial Diagnostics
 
 When using the default ULN2003 build, you can send `t` in Serial Monitor to run a coil self-test. This energizes each ULN2003 output in sequence so you can verify the board LEDs and coil order.
+
+## Field Controls
+
+The single-button interface is designed so you do not need a computer in the field:
+
+- Short press toggles the motor state
+- Long press while stopped advances to the next preset
+- Presets cycle in this order: `REV_10S` → `REV_1MIN` → `REV_2H` → `REV_4H`
+- The selected preset is shown with LED blink count and saved to EEPROM
+- On startup, the sketch reloads the saved preset and blinks it once for confirmation
 
 ## Technical Notes
 
@@ -91,6 +112,25 @@ When using the default ULN2003 build, you can send `t` in Serial Monitor to run 
 - `stepper.disableOutputs()` is used when idle to reduce heat and power draw
 - Debounce logic is built into the button handler
 - The sketch caps very large step rates to avoid unrealistic or unsafe values
+
+## Suitability For The Ballerina Spinner
+
+Electrically, the current Uno + ULN2003 + 28BYJ-48 wiring is sound for the documented build and is a good proof-of-concept for a lightweight rotating figure.
+
+The main limitation is motion quality at very slow presets. With `4096` half-steps per revolution, the current presets work out to approximately:
+
+- `REV_4H`: one half-step every `3.52` seconds
+- `REV_2H`: one half-step every `1.76` seconds
+- `REV_1MIN`: about `68.3` steps/second
+- `REV_10S`: about `409.6` steps/second
+
+That means the `4H` and `2H` modes are controlled and repeatable, but they are not truly continuous-looking. For a ballerina display, the current setup is best suited to a **very light, well-balanced subject** where slight stepwise motion is acceptable.
+
+If the finished piece needs smoother-looking ultra-slow motion, higher torque, or less visible stepping, the next hardware upgrade should be:
+
+- a bearing-supported turntable so the motor does not carry the full vertical load directly
+- a belt or gear reduction stage between the motor and the platform
+- a microstepped STEP/DIR driver build such as a NEMA-17 with `A4988` or `DRV8825`
 
 ## Project Structure
 
@@ -104,17 +144,16 @@ This repo is small and purpose-built:
 
 This repo uses `release-please` for automated versioning and GitHub Releases.
 
-- Release metadata lives in `version.txt` and `CHANGELOG.md`
-- The release workflow runs from `.github/workflows/release-please.yml`
+- The release workflow runs from [`.github/workflows/release-please.yml`](.github/workflows/release-please.yml)
+- Manifest configuration lives in [`release-please-config.json`](release-please-config.json) and [`.release-please-manifest.json`](.release-please-manifest.json)
+- The current tracked release version is `0.1.1`, reflected in [`version.txt`](version.txt), [`CHANGELOG.md`](CHANGELOG.md), and the existing `v0.1.1` git tag
 - Future release PRs are driven by Conventional Commit messages such as `feat:` and `fix:`
-- The repository is bootstrapped at `0.1.0` as the first documented baseline
 
-If you want the current state published as an actual GitHub release, create a one-time `v0.1.0` tag/release from the current `main` branch. After that, push releasable `feat:` or `fix:` commits to `main`; `release-please` will open a release PR, and merging that PR will publish the GitHub Release automatically.
+This repository is already bootstrapped for `release-please`. Push releasable commits to `main`, let `release-please` open or update the release PR, and merge that PR to cut the next release.
 
 ## Good Next Improvements
 
 - Add a runtime menu for switching presets without editing the sketch
-- Persist the selected preset in EEPROM
 - Add direction control or reversible motion
 - Add camera trigger or intervalometer sync
 - Add tested STEP/DIR wiring and defaults for a NEMA-17 upgrade
@@ -123,8 +162,9 @@ If you want the current state published as an actual GitHub release, create a on
 
 This project is a good fit for:
 
-- Astrophotography and timelapse experiments
 - Slow-rotation display platforms
+- Kinetic art and rotating figure displays
+- Astrophotography and timelapse experiments
 - Arduino users who want a practical stepper project with a clear upgrade path
 
 ### Created by Mauricio Castro
