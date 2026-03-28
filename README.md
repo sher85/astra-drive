@@ -1,8 +1,8 @@
-# MilkyWay Spinner
+# Astra Drive
 
 Arduino stepper controller for ultra-slow, controlled rotation in lightweight display and photography setups.
 
-MilkyWay Spinner drives a small rotating display, including a lightweight ballerina figure, at very slow and repeatable speeds. The current build is centered on an Arduino Uno, a 28BYJ-48 stepper motor, and a ULN2003 driver board, with the sketch already structured to support future STEP/DIR drivers such as an A4988 or DRV8825.
+Astra Drive drives a small rotating display, including a lightweight ballerina figure, at very slow and repeatable speeds. The current build is centered on an Arduino Uno, a 28BYJ-48 stepper motor, and a ULN2003 driver board, with the sketch already structured to support future STEP/DIR drivers such as an A4988 or DRV8825.
 
 ## What This Repo Contains
 
@@ -151,6 +151,10 @@ This repo uses `release-please` for automated versioning and GitHub Releases.
 
 This repository is already bootstrapped for `release-please`. Push releasable commits to `main`, let `release-please` open or update the release PR, and merge that PR to cut the next release.
 
+## License
+
+This project is licensed under the `MIT` License. See [`LICENSE`](LICENSE).
+
 ## Good Next Improvements
 
 - Add a runtime menu for switching presets without editing the sketch
@@ -166,5 +170,3 @@ This project is a good fit for:
 - Kinetic art and rotating figure displays
 - Astrophotography and timelapse experiments
 - Arduino users who want a practical stepper project with a clear upgrade path
-
-### Created by Mauricio Castro

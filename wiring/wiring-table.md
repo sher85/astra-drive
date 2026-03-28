@@ -1,6 +1,6 @@
-# MilkyWay Spinner Wiring Table
+# Astra Drive Wiring Table
 
-This document provides a complete wiring reference for the MilkyWay Spinner setup, which includes an Arduino Uno, ULN2003 driver board, 28BYJ-48 stepper motor, push button, and LED.
+This document provides a complete wiring reference for the Astra Drive setup, which includes an Arduino Uno, ULN2003 driver board, 28BYJ-48 stepper motor, push button, and LED.
 
 | Breadboard                | Component                | Arduino Uno R3 | Stepper Driver Board (ULN2003)                | Stepper Motor | Notes                                     |
 | ------------------------- | ------------------------ | -------------- | --------------------------------------------- | ------------- | ----------------------------------------- |

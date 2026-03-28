@@ -1,4 +1,4 @@
-// MilkyWay Spinner
+// Astra Drive
 // Supports today's ULN2003+28BYJ-48 and a future STEP/DIR (e.g., NEMA‑17 + A4988/DRV8825)
 // Paste directly into the Arduino IDE.
 
